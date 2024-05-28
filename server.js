@@ -28,9 +28,18 @@ const blogSchema=new mongoose.Schema({
     email:String,
     data:Array
 })
+const allBlogsSchema=new mongoose.Schema({
+    email:String,
+    name:String,
+    comments:Array,
+    Para:String,
+    ImageLink:String,
+    Likes:Array
+})
 const User=new mongoose.model("users",userSchema);
 const otpdata=new mongoose.model("otpdata",otpSchema);
 const Blogdata=new mongoose.model("Blogdata",blogSchema);
+const AllBlogdata=new mongoose.model("AllBlogdata",allBlogsSchema);
 server.post("/login",async(req,res)=>{
     const  {email , password}=req.body;
     const hpassword=await bcrypt.hash(password,6);
@@ -127,15 +136,32 @@ server.post("/signup",async(req,res)=>{
     }
 })
 })
-
+server.post("/Allblogs",async(req,res)=>{
+    const {email,name,Para,ImageLink}=req.body;
+    const comments=[];
+    AllBlogdata.findOne({email:email,name:name,Para:Para}).then((user)=>{
+        if(user){
+            res.send({message:"Successfully"});
+        }
+        else {
+            const newuser=new AllBlogdata({
+                email,
+                name,
+                Para,
+                ImageLink,
+                comments
+            })
+            newuser.save().then(res.send({message:"Successfull"}));
+        }
+    })
+})
 server.post("/enterdata",async(req,res)=>{
-    const {name,Para,ImageLink}=req.body;
+    const {email,name,Para,ImageLink}=req.body;
     const data={
         name:name,
         Para:Para,
         ImageLink:ImageLink
     }
-    const email="venkatsai.bandi2019@gmail.com"
     Blogdata.findOne({email:email}).then((user)=>{
         if(user) {
             user.data.push(data);
@@ -150,30 +176,60 @@ server.post("/enterdata",async(req,res)=>{
         }
     })
 })
-server.get("/getdata/:email",async(req,res)=>{
-    const {email}=req.params;
-    Blogdata.findOne({email:email}).then((user)=>{
-        if(user) {
-            res.send({data:user.data});
+server.get("/getdata",async(req,res)=>{
+    const data= await AllBlogdata.find().sort({_id:-1});
+    res.send({data:data});
+})
+server.post("/delete",async(req,res)=>{
+    const {email,name}=req.body;
+    AllBlogdata.findOne({email:email,name:name}).then((user)=>{
+        if(user){
+           AllBlogdata.deleteOne({email:email,name:name}).then(()=>{
+            res.send({message:"Successfull"});
+           })
         }
         else {
-            const user=new Blogdata({
-                email,
-                data
-            })
-            user.save().then(()=>{res.send({message:"Successfull"})});
+            res.send({message:"Not Found"});
         }
     })
 })
-server.delete("/delete/:name",async(req,res)=>{
-    const {name}=req.params;
-    const email="venkatsai.bandi2019@gmail.com";
-    Blogdata.findOne({email:email}).then((user)=>{
-        if(user){
-           const newdata=user.data.filter(x =>x.name !== name);
-           user.data=newdata;
-           user.save();
-           res.send("Successfull");
+server.post("/addcomment",async(req,res)=>{
+    const {name,pname,comment}=req.body;
+    const data={
+        name:pname,
+        comment:comment
+    }
+    AllBlogdata.findOne({name:name}).then((user)=>{
+        if(user) {
+            user.comments.push(data);
+            user.save().then(res.send({message:"Successfull"}));
+        }
+        else {
+            res.send({message:"Not found"});
+        }
+    })
+})
+server.post("/likeposts",async(req,res)=>{
+    const {email,name}=req.body;
+    AllBlogdata.findOne({name:name}).then((user)=>{
+        if(user) {
+            user.Likes.push(email);
+            user.save().then(res.send({message:"SuccessFull"}));
+        }
+        else {
+            res.send({message:"Not Found"});
+        }
+    })
+})
+server.post("/unlikeposts",async(req,res)=>{
+    const {email,name}=req.body;
+    AllBlogdata.findOne({name:name}).then((user)=>{
+        if(user) {
+            user.Likes=user.Likes.filter(item => item !== email);
+            user.save().then(res.send({message:"SuccessFull"}));
+        }
+        else {
+            res.send({message:"Not Found"});
         }
     })
 })
